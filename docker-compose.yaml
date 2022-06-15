@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  redis:
+    image: redis
+    container_name: redis
+    command: redis-server --requirepass 12345 --appendonly yes
+    #appendonly: yes - Utiliza o volume para armazenar os dados
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
