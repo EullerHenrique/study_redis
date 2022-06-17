@@ -1,14 +1,399 @@
-Redis é um banco de dados que armazena os dados na forma de chave-valor. Podemos armazenar certos dados, que para serem obtidos em um banco sql, seria necessário varrer todo o banco, como por exemplo, saber o número de alunos cadastrados no Alura. Quando utilizamos o Redis, podemos definir uma chave associada a um valor(o número de alunos). Dessa forma podemos obter o valor de uma forma muito rápida.
+1. Os problemas que o redis resolve
 
-Os valores não precisam ser apenas números. Podem ser palavras, listas, conjuntos, entre outros. A medida que avançarmos no curso veremos alguns desses valores.
+Redis é um banco de dados que armazena os dados na forma de chave-valor. Podemos armazenar certos dados, que para serem obtidos em um 
+banco sql, seria necessário varrer todo o banco, como por exemplo, saber o número de alunos cadastrados no Alura. Quando utilizamos o 
+Redis, podemos definir uma chave associada a um valor(o número de alunos). Dessa forma podemos obter o valor de uma forma muito rápida.
+
+Os valores não precisam ser apenas números. Podem ser palavras, listas, conjuntos, entre outros. A medida que avançarmos no curso veremos 
+alguns desses valores.
 
 docker exec -it redis bash
 ou
 docker exec -it redis sh
 
+//Executa o redis
 redis-cli
 
+//Realiza o login
 auth 12345
+
+//Printa a string "OI"
 echo "OI"
+
+//Cria a chave oi e armazena o valor 2 nela
 set oi 2
+
+//Obtem o valor armazenado na chave oi
 get oi
+
+//Lista todas as chaves
+keys *
+
+//Deleta a chave oi
+del oi
+
+Vamos criar dois conjuntos de chave e valor, já definindo um padrão para as nossas chaves. Vamos utilizar um padrão que já existe, 
+que utiliza ":" (dois pontos) para definir um estrutura nas chaves. Aqui, vamos separar por data e tipo de jogo.
+
+Crie as seguintes combinações de chave e valor:
+
+chave: resultado:17-05-2015:megasena valor: "2, 15, 18, 25, 28, 32"
+
+chave: resultado:10-05-2015:megasena valor: "4, 16, 19, 23, 28, 43"
+
+A importância de definir um padrão nos nomes das nossas chaves é que isso facilitará no momento em que estivermos fazendo buscas. 
+Com um padrão é bem mais fácil buscar, por exemplo, os resultados da Mega-sena que ocorreram em um mês específico, ou em um ano específico,
+ou em um intervalo de dias.
+
+3. Otimizando mais buscas
+
+No capítulo, vimos que é possível armazenar mais de um conjunto de chave em um só comando, para evitar definir um por um através do 
+comando SET. Utilize o comando necessário para definir, de uma vez só, as seguintes duplas de chave e valor:
+
+resultado:03-05-2015:megasena "1, 3, 17, 19, 24, 26" 
+resultado:22-04-2015:megasena "15, 18, 20, 32, 37, 41" 
+resultado:15-04-2015:megasena "10, 15, 18, 22, 35, 43"
+
+Você pode verificar se tudo ocorreu como esperado, utilizando o comando KEYS * para ver se as chaves foram definidas.
+
+2. Otimizando buscas
+
+Neste capítulo vimos que podemos utilizar o caractere * para buscar a correspondência de um ou mais caracteres dentro de uma chave. 
+Portanto, se executarmos o comando KEYS al*ra temos correspondência com "alra", "alura" e "aluuura", por exemplo.
+
+Que comando podemos executar para recuperarmos as chaves que correspondem aos resultados de todos os sorteios da Mega-sena 
+realizados no mês de Abril de 2015? E para buscar os resultados entre o dia 01 e 09 de Maio de 2015?
+
+Para recuperar as chaves que correspondem aos resultados do mês de Abril, podemos executar o seguinte comando:
+
+KEYS resultado:*-04-2015:megasena
+
+> 1) "resultado:15-04-2015:megasena"
+> 2) "resultado:22-04-2015:megasena"
+
+Aqui, o "*" indica que qualquer coisa depois de "resultado" e antes de "-04-2015:megasena" correspondem ao padrão.
+
+Para recuperar as chaves entre o dia 01 e 09 de Maio de 2015:
+
+KEYS resultado:0*-05-2015:megasena
+
+> 1) "resultado:03-05-2015:megasena"
+
+No exercício anterior buscamos as chaves entre o dia 01 e 09 de Maio de 2015 utilizamos o "*" após o "0" que representa o dia e antes do 
+inicio do mês ("-05-2015"). Vimos que o "*" encontra correspondência para nenhum, um, ou mais caracteres. Portanto se tivéssemos algo 
+como resultado:0345-05-2015:megasena, a chave seria retornada.
+
+Como podemos garantir que após o "0" do dia, irá existir apenas um caractere?
+
+Podemos garantir a existência de apenas um caractere utilizando um "?" no lugar do "*":
+
+KEYS resultado:0?-05-2015:megasena
+> 1) "resultado:03-05-2015:megasena"
+Dessa forma, uma chave que por acaso tenha o nome "resultado:0345-05-2015:megasena", como citado anteriormente, não seria retornada na nossa busca.
+
+Adicione alguns resultados de sorteio da Giga-sena e Lotomania:
+
+MSET resultado:05-05-2015:gigasena "1, 25, 34, 67, 89, 90" resultado:15-05-2015:gigasena "2, 14, 28, 56, 78, 88" 
+resultado:25-05-2015:gigasena "4, 17, 38, 45, 57, 68" resultado:29-05-2015:lotomania "02, 04, 05, 10, 13"
+Como podemos fazer para recuperar todos os resultados que existem em 2015 da Lotomania? E para recuperar todos os resultados de Maio 
+de 2015, da Mega-sena e Giga-sena?
+
+Para recuperar todos os resultados de 2015 da Lotomania, podemos utilizar:
+
+KEYS resultado:*-2015:lotomania
+
+> 1) "resultado:29-05-2015:lotomania"
+Uma opção, seria substituir o "*" por "?" para garantir o formato correto da data:
+
+KEYS resultado:??-??-2015:lotomania
+
+> 1) "resultado:29-05-2015:lotomania"
+Para recuperar todos os resultados de Maio de 2015 da Mega-sena ou Giga-sena:
+
+KEYS resultado:??-05-2015:*sena
+
+Como podemos fazer para obter os sorteios da Mega-sena que ocorreram nos dias terminados em "3" ou em "7", de qualquer mês, 
+de qualquer ano?
+
+Para esse tipo de busca, utilizamos "[]" (colchetes), passando a lista que queremos encontrar correspondência dentro dos colchetes. 
+No nosso caso, o "3" e o "7". O comando final fica:
+
+KEYS "resultado:?[37]-??-????:megasena"
+
+> 1) "resultado:03-05-2015:megasena"
+> 2) "resultado:17-05-2015:megasena"
+
+Qual seria o comando necessário para obter as chaves que representam os resultados dos dias 15 ou 17 de qualquer mês, 
+de qualquer ano, da Mega-sena ou da Giga-sena?
+
+Para obtermos o resultado dos dias 15 e 17, precisamos utilizar "[]" (colchetes) com a lista de números dentro deles. 
+Para representar que podem ser quaisquer mês e ano utilizamos "??-????". Por fim, para obter os resultados da Mega-sena e Giga-sena, utilizamos o ":*sena". O comando final fica assim:
+
+KEYS resultado:1[57]-??-????:*sena
+1) "resultado:17-05-2015:megasena"
+2) "resultado:15-05-2015:gigasena"
+3) "resultado:15-04-2015:megasena
+
+Qual a grande vantagem de usar caracteres coringa (?) e os colchetes ao buscar chaves?
+
+Uma das grandes vantagens está em entender quais tipos de valores foram armazenados em nosso banco de dados Redis. 
+Se não pudéssemos pesquisar chaves de maneira genéricas através do ? teríamos que pesquisar todos os valores possíveis 
+para entender quais datas foram armazenadas no banco.
+
+Claro que dependendo da operação que fazemos é interessante manter outras chaves de ajuda. Por exemplo, uma data mínima e 
+máxima: armazenada:data_mais_antiga e armazenada:data_mais_recente assim poderíamos mostrar em um combo de onde até onde 
+faz sentido a pesquisa no nosso banco.
+
+5. Trabalhando com hashes
+
+Até o momento os valores que utilizamos eram do tipo string. Neste capítulo vimos um outro tipo de dados suportado pelo Redis 
+para os valores: o hash. No lugar de armazenar apenas os valores de um resultado de um sorteio, vamos armazenar também a quantidade de 
+ganhadores.
+
+Utilize o comando HSET para armazenar os seguintes conjuntos dentro da chave "resultado:24-05-2015:megasena":
+
+"numeros" "13, 17, 19, 25, 28, 32"
+
+"ganhadores" 23
+Após ter armazenado os conjuntos anteriores, recupere os valores de "numeros" e "ganhadores".
+
+Para armazenar cada um dos conjuntos de chave e valor associados a uma chave, utilizamos o comando HSET para cada um dos conjuntos:
+
+HSET resultado:24-05-2015:megasena "numeros" "13, 17, 19, 25, 28, 32"
+
+HSET resultado:24-05-2015:megasena "ganhadores" 23
+
+Para recuperar os valores com o comando HGET, podemos fazer:
+
+HGET resultado:24-05-2015:megasena "numeros"
+> "13, 17, 19, 25, 28, 32"
+
+HGET resultado:24-05-2015:megasena "ganhadores"
+> "23"
+
+Para remover um campo de um hash, podemos utilizar o comando HDEL. Exclua o campo correspondente aos números.
+
+Tente recuperar o "numeros" com o HGET e certifique-se que ele devolve (nil), indicando que os valores foram removidos do hash.
+
+Para remover com o comando HDEL:
+
+HDEL resultado:24-05-2015:megasena "numeros"
+> (integer) 1
+
+Quando tentamos recuperar "numeros" através do HGET recebemos (nil) como repsosta:
+
+HGET resultado:24-05-2015:megasena "numeros"
+> (nil)
+
+Da mesma forma que podemos atribuir vários conjuntos de chave e valor em um único comando utilizando o MSET, 
+podemos utilizar o comando HMSET para atribuir varios valores quando utilizamos um hash no valor.
+
+O comando funciona da seguinte forma:
+
+HMSET nome_da_chave campo1 "Ola" campo2 "Mundo"
+
+Utilize o HMSETpara associar à chave "resultado:05-06-2015:megasena", um hash com as seguintes combinações:
+
+"numeros" "5, 19, 23, 28, 46, 49"
+"ganhadores" "16"
+
+Para definir tudo em um só comando através do HMSET, podemos fazer o seguinte:
+
+HMSET "resultado:05-06-2015:megasena" "numeros" "5, 19, 23, 28, 46, 49" "ganhadores" "16".
+
+Podemos utilzar o HGET para recuperar os valores e verificar se tudo ocorreu como esperado:
+
+HGET "resultado:05-06-2015:megasena" "numeros"
+> "5, 19, 23, 28, 46, 49"
+
+HGET "resultado:05-06-2015:megasena" "ganhadores"
+> 16
+
+Até o momento, utilizamos o comando HGET para recuperar um valor dentro de um hash. Se quisermos recuperar todos os valores 
+que existem no hash, podemos utilizar o comando HGETALL, passando como parâmetro o nome da chave que está associada ao hash.
+
+Teste a utilização do comando HGETALL para recuperando a chave "resultado:05-06-2015:megasena":
+
+HGETALL "resultado:05-06-2015:megasena"
+
+O comando HGETALL retorna todos os valores que temos no hash, bem como as chaves que estão associadas a esses valores:
+
+> 1) "numeros"
+> 2) "5, 19, 23, 28, 46, 49"
+> 3) "ganhadores"
+> 4) "16"
+6. Sessão de um usuário web
+
+Neste capítulo vimos um exemplo onde podemos utilizar o Redis para armazenar informações da sessão web de um usuário para os casos em 
+que um site possui mais de um servidor. Quais as vantagens de utilizar o Redis nesse tipo de cenário?
+
+A primeira vantagem de utilizar esse tipo de estratégia, é que as informações não precisam ser compartilhadas entre os próprios 
+servidores, mas sim no banco de dados, evitando a replicação da informação nos servidores web.
+
+Uma outra vantagem, é que ao utilizar um banco de dados do tipo do Redis, o acesso a essas informações acaba se tornando bastante rápido.
+
+Vamos agora, definir informações para uma sessão de um usuário e depois definir um tempo para que essas informações expirem.
+
+Utilizando o comando HMSET para armazenar múltiplas informações em um hash, defina os seguintes valores:
+
+HMSET "sessao:usuario:1675" "nome" "guilherme" "total_de_produtos" "3" "sobrenome" "silveira"
+
+4. Mais buscas e padrões
+
+Como podemos fazer para indicar para o Redis que queremos que esses valores sejam apagados após 30 minutos?
+
+Para indicar que queremos que os valores sejam apagados após um certo intervalo de tempo, utilizamos o camando EXPIRE, passando como 
+argumentos o nome da chave e a quantidade de tempo em segundos:
+
+EXPIRE "sessao:usuario:1675" 1800
+
+Qual comando podemos utilizar para ver o tempo que resta aos valores associados à chave "sessao:usuario:1675"?
+
+Para descobrir o tempo de vida dos valores, utilizamos o comando TTL passando como parâmetro a chave:
+
+TTL "sessao:usuario:1675"
+> 1066
+O "1066" que recebemos como resultado indica o valor em segundos. Neste caso, nos restam mais ou menos 17 minutos dos 30 minutos iniciais
+
+7. Estatísticas de acesso a uma página
+
+Qual o problema de executar um GET e depois um SET para aumentar ou diminuir em 1 o valor de uma chave?
+
+O banco Redis por padrão não envolve as duas chamadas em um conceito de transação, e cada uma delas é executada de maneira 
+atômica (sem interferência de comandos externos) por si só, mas não em conjunto. Isso quer dizer que entre um GET que retorna 4, 
+e um SET que vai alterar o valor para 5, podem ter sido feitos 10, 100, 1000 atualizações neste valor.
+
+Já os comandos INCR e DECR são atomicos por si só, sendo equivalentes a um "GET/SET/GET", isto é, eles conferem o valor, aumentam 
+ou diminuem ele e depois retornam o resultado novo.
+
+
+Durante esse capítulo vimos um exemplo onde desejamos armazenar a quantidade de acessos que ocorrem em uma determinada página do nosso 
+site. Para isso, precisamos sempre incrementar o valor 1 ao valor existente. Aprendemos também que recuperar o valor existente na chave 
+utilizando o GET, e depois atualizar o valor da chave utilizando o SET pode nos trazer problemas. Por exemplo, alguém ter feito alguma 
+alteração enquanto executávamos os dois comando.
+
+Qual o comando que podemos utilizar para incrementar o valor associado à chave em 1 de forma que o Redis execute a operação anterior de 
+uma só vez, garantindo a atomicidade da mesma? Utilize o comando para incrementar a chave "pagina:/contato:25-05-2015", que representa 
+os acessos a página de contatos de um determinado dia.
+
+Qual o comando podemos utilizar para decrementar o valor 1 na chave definida anteriormente?
+
+Para incrementar o valor 1, utilizamos o comando INCR passando como parâmetro o nome da chave. 
+O comando nos retorna o valor associado a essa chave:
+
+INCR "pagina:/contato:25-05-2015"
+> (integer) 1
+
+INCR "pagina:/contato:25-05-2015"
+> (integer) 2
+Para decrementar o valor 1, utilizamos o comando DECR:
+
+DECR "pagina:/contato:25-05-2015"
+> (integer) 1
+
+Vamos agora criar uma chave cujo valor representa o valor das compras feitas em um site.
+
+Crie a varíavel "compras:25-05-2015:valor" e realize incrementos com os seguintes valores, utilizando o comando mais apropriado: 20; 22; 45.
+
+Feito isso, decremente o valor 10 da variável "compras:25-05-2015:valor".
+
+Aproveite para incrementar o valor 15.60, e decrementar o valor 5.60.
+
+Como resposta, forneça todos os comando utilizados.
+
+Para incrementar o valor que desejarmos, utilizamos o comando INCRBY. Para decrementar, o DECRBY:
+
+INCRBY "compras:25-05-2015:valor" 20
+> (integer) 20
+INCRBY "compras:25-05-2015:valor" 22
+> (integer) 42
+INCRBY "compras:25-05-2015:valor" 45
+> (integer) 87
+
+DECRBY "compras:25-05-2015:valor" 10
+> (integer) 77
+Para incrementar e decrementar valores com casa decimal, utilizamos INCRBYFLOAT, passando valores positivos e negativos, respectivamente:
+
+INCRBYFLOAT "compras:25-05-2015:valor" 15.60
+> "92.6"
+
+INCRBYFLOAT "compras:25-05-2015:valor" -5.60
+> "87.0"
+
+8. Quem acessou meu sistema
+
+Para que serve o comando SETBIT e onde voce usaria ele no mundo real?
+
+O comando SETBIT permite que seja representada uma sequência de valores binários, ou bitmaps. Um bitmap funciona como um array que armazena zeros e uns associados a um offset.
+
+Um exemplo onde podemos utilizar o SETBITé para manter os acessos de um usuário à uma página de um site em um determinado dia. Pois é simples representar esse tipo de situação com dados binários (ou o usuário acessou, ou não acessou).
+
+O offset nesse exemplo, pode ser o id do usuário. Quando o valor associado ao id do usuário é 1, significa que ele acessou a página em um determinado dia. Quando o valor é 0, significa que não houve acesso daquele usuário em um determinado dia.
+
+Algo interessante ao se utilizar bitmaps é poder realizar operações lógicas como AND e OR, ficando fácil descobrir por exemplo, quais usuários acessaram minha páginas em duas datas, etc.
+
+O comando SETBIT é utilizado passando os seguintes argumentos:
+
+SETBIT chave offset valor
+
+No exemplo que registramos os acessos a um site, a chave pode seguir o padrão "acesso:data-do-acesso", o offset é o id do usuário e o valor precisa ser 0 ou 1.
+
+Vamos agora guardar valores que representam se determinado usuário acessou ou não nosso sistema em um determinado dia. Para isso, utilizaremos o comando SETBIT que nos permite, através de um bit, representar um valor booleano.
+
+Crie os seguintes valores, para os quais associamos um id de um usuário. O valor 1 indica que o usuário acessou nosso sistema em um determinado dia:
+
+SETBIT acesso:25-05-2015 1 1
+> (integer) 0
+SETBIT acesso:25-05-2015 2 1
+> (integer) 0
+SETBIT acesso:26-05-2015 1 1
+> (integer) 0
+SETBIT acesso:26-05-2015 3 1
+> (integer) 0
+SETBIT acesso:27-05-2015 1 1
+> (integer) 0
+SETBIT acesso:27-05-2015 2 1
+> (integer) 0
+SETBIT acesso:27-05-2015 3 1
+> (integer) 0COPIAR CÓDIGO
+Qual o comando necessário para que possamos descobrir se o usuário que possui o id 1 acessou o meu sistema no dia 25-05-2015?
+
+Qual o comando necessário para descobrir quantos usuários acessaram meu sistema no dia 25-05-2015?
+
+Podemos utilizar o comando GETBIT para descobrir o valor que está associado ao id:
+
+GETBIT acesso:25-05-2015 1
+> (integer) 1
+Nesse caso, o Redis retorna o valor 1, indicando que o usuário acessou o meu sistema no dia específico.
+
+Para recuperar a quantidade de acessos, de um determinado dia, utilizamos o comando BITCOUNT que conta todos os valores "1":
+
+BITCOUNT acesso:25-05-2015
+> (integer) 2
+
+De acordo com o que foi visto neste capítulo, como podemos fazer para descobrir quais usuários acessaram o meu sistema no dia 25 e no dia 26? E para descobrir quem acessou no dia 25 ou 26?
+
+Nós utilizamos o comando BITOP para realizar uma operação bit a bit. No primeiro caso queremos aplicar o operador AND, para descobrir quem acessou o sistema nos dois dias:
+
+O comando BITOP gera uma nova sequência após aplicar o operador & em cada um dos bits nas sequências que passamos:
+
+BITOP AND acesso:25-e-26-05-2015 acesso:25-05-2015 acesso:26-05-2015
+Se utilizarmos o comando GETBIT na nova sequência, verificamos que o usuário de id "1" acessou o sistema nos dois dias, já o usuário "2", não:
+
+GETBIT acesso:25-e-26-05-2015 1
+> (integer) 1
+GETBIT acesso:25-e-26-05-2015 2
+> (integer) 0
+Para contabilizar quantos usuários acessaram nos dois dias, utilizamos o comando BITCOUNT:
+
+BITCOUNT acesso:25-e-26-05-2015
+> (integer) 1
+O "1" retornado indica que apenas um usuário acessou meu sistema nos dois dias.
+
+Para descobrir quem acessou em um dia ou no outro, utilizamos o operador OR:
+
+BITOP OR acesso:25-ou-26-05-2015 acesso:25-05-2015 acesso:26-05-2015
+> (integer) 1
+
+BITCOUNT  acesso:25-ou-26-05-2015
+> (integer) 3
