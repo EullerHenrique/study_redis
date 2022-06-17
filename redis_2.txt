@@ -1,0 +1,252 @@
+1. Últimas notícias
+
+Neste capítulo, vimos uma nova estrutura de dados suportada pelo Redis: listas. Vamos agora criar uma chave associada a uma lista que 
+guarda as últimas noticias de um site.
+
+Como visto nas aulas, crie uma chave chamada ultimas_noticias e adicione as seguintes notícias considerando a última como sendo a mais 
+recente:
+
+Jogador de futebol e flagrado jogando basquete na rua
+Novo curso de Redis e lancado pelo Alura
+Guilherme Silveira faz aniversario e espera presentes... sentado
+Como resposta, forneça o(s) comando(s) utilizado(s).
+
+Podemos inserir as notícias utilizando o comando LPUSH passando as notícias uma por uma, ou passando todas de uma só vez, algo que só 
+é suportado a partir da versão 2.4 do Redis:
+
+LPUSH ultimas_noticias "Jogador de basquete e encontrado jogando futebol na quadra" "Jogador de futebol e flagrado jogando basquete na 
+rua" "Novo curso de Redis e lancado pelo Alura" "Guilherme Silveira faz aniversario e espera presentes... sentado"
+Perceba que mesmo quando passamos vários argumentos para o comando LPUSH, o Redis fará com que a última notícia seja a mais recente, 
+como veremos no próximo exercício.
+
+Qual o comando necessário para recuperar a notícia mais recente armazenada na nossa lista? E para recuperar as duas notícias mais recentes, 
+como podemos fazer?
+
+Para recuperar um elemento da lista utilizamos o comando LINDEX passando como argumentos a a chave e o índice que queremos recuperar. 
+No nosso caso, a notícia mais recente está no índice 0:
+
+> LINDEX ultimas_noticias 0
+> "Guilherme Silveira faz aniversario e espera presentes... sentado"COPIAR CÓDIGO
+Para recuperar um intervalo da lista, utilizamos o LRANGE passando como argumento os índices do intervalo. Como desejamos as duas 
+notícias mais recente, passamos 0 e 1 como argumentos:
+
+> LRANGE ultimas_noticias 0 1
+> 1) "Guilherme Silveira faz aniversario e espera presentes... sentado"
+> 2) "Novo curso de Redis e lancado pelo Alura"
+
+Qual comando podemos utilizar para descobrir o tamanho de nossa lista? Como podemos fazer para deixar a lista com apenas as três últimas 
+notícias?
+
+Como respostas, forneça os comandos necessários.
+
+Para descorbri o tamanho da lista, utilizamos o comando LLEN:
+
+> LLEN ultimas_noticias
+> (integer) 4
+Para manter apenas as três últimas notícias na lista, utilizamos o comando LTRIM passando o intervalo que desejamos manter:
+
+> LTRIM ultimas_noticias 0 2
+> OK
+Agora a lista possui tamanho 3, com os índices 0, 1 e 2:
+
+> LLEN ultimas_noticias
+> (integer) 3
+
+02. Uma fila de espera de email e mensagem de celular
+
+Neste capítulo vimos como podemos utilizar o conceito de filas no Redis. Cite alguns exemplos onde podemos utilizar filas. 
+Em algum momento da sua carreira você já passou por situações onde acredita que o uso de filas no Redis se encaixaria no projeto 
+que você participou? Caso tenha acontecido, conte um pouco sobre o(s) projeto(s).
+
+Uma utilização comum das filas, é quando desejamos executar tarefas em background, para que o usuário não tenha que esperar a tarefa 
+ser concluída e possa realizar outras atividades de forma paralela. No caso de um sistema onde é necessário confirmação por e-mail ou SMS,
+podemos executar esse envio em segundo plano e a medida que usuários vão necessitando de confirmação vamos armazenando-os em uma fila, 
+onde o primeiro que chega é o primeiro que terá sua solicitação atendida.
+
+Um outro exemplo de uso de fila, é um chat de atendimento, onde a medida que os usuários precisam esperar os atendentes estarem 
+disponíveis, eles são colocados em uma fila.
+
+Vamos agora representar um sistema de envio de e-mails de confirmação. Para isso armazene os seguintes valores associados à chave 
+"fila:confirma-email". Lembre-se de inserir os elementos pela direita da lista:
+
+"guilherme.silveira@alura.com.br"
+"daniela.mikyung@alura.com.br"
+"carlos.felicio@alura.com.br"
+Como podemos confirmar que a lista possui realmente 3 elementos?
+
+Como podemos recuperar todos os elementos da lista e garantir que eles estão inseridos na ordem que desejamos?
+
+Como resposta, forneça os comandos utilizados.
+
+Para inserirmos pela direita da lista, utilizamos o comando RPUSH:
+
+> RPUSH "fila:confirma-email" "guilherme.silveira@alura.com.br"
+> RPUSH "fila:confirma-email" "daniela.mikyung@alura.com.br"
+> RPUSH "fila:confirma-email" "carlos.felicio@alura.com.br"
+
+Para garantir que a lista possui o três elementos,o comando é o LLEN:
+
+LLEN "fila:confirma-email"
+Para garantir que os elementos foram inseridos na ordem que desejamos podemos recuperá-los com o LRANGE:
+
+> LRANGE "fila:confirma-email" 0 2
+> 1) "guilherme.silveira@alura.com.br"
+> 2) "daniela.mikyung@alura.com.br"
+> 3) "carlos.felicio@alura.com.br"
+
+Perceba que o primeiro valor inserido é realmente o primeiro valor da lista, diferente do exemplo do capítulo passado, 
+onde de fato queríamos que o último valor inserido fosse o primeiro.
+
+Como podemos remover e recuperar o primeiro valor da fila, de forma que a operação seja realizada de maneira atômica, 
+garantindo que nenhum outro valor será adicionado nesse meio tempo e acabe trazendo resultados indesejados?
+
+E se houver necessidade de remover e recuperar o último elemento, qual comando seria necessário?
+
+Confira o tamanho da fila, que agora deve ser 1.
+
+Como resposta, forneça os comando necessários.
+
+Para remover e recuperar o primeiro elemento da fila, utilizamos o LPOP:
+
+> LPOP "fila:confirma-email"
+> "guilherme.silveira@alura.com.br"
+Para remover e recuperar o último de uma lista, utilizamos o RPOP:
+
+> RPOP "fila:confirma-email"
+> "carlos.felicio@alura.com.br"
+Podemos conferir o tamanho da fila, que agora passou a ser 1:
+
+> LLEN "fila:confirma-email"
+> (integer) 1
+
+03. Busy wait pop blocante com o blpop
+
+De acordo com o que vimos nesse capítulo, que nome damos ao tipo de situação na qual ficamos a todo momento executando o comando LPOP 
+para remover um valor de uma fila sem elementos até que haja um elemento para remover?
+
+Busy Waiting
+
+Espera ocupada, do inglês busy-waiting é o nome dado ao problema que ocorre quanto utiliza-se o processador de forma desnecessária se 
+fircarmos a todo momento executando o comando para remover um valor da fila mesmo que não exista valores a serem removidos
+
+Qual o comando necessário para remover o primeiro elemento na fila cuja chave é "fila:confirma-email" de forma que ele fique bloqueado por 
+60 segundos caso não exista valor a ser removido?
+
+BLPOP "fila:confirma-email" 60
+
+Utilizamos o comando BLPOP passando como argumentos a chave e o tempo que desejamos que ele espere em segundos.
+
+Remova todos os elementos da nossa fila.
+
+Utilize o comando BLPOP para ficar bloqueado por um tempo inderteminado.
+
+Agora abra um novo terminal, inicie o cliente do Redis e insira um valor na fila.
+
+Como resposta, forneça os comandos necessários, e também o resultado do comando BLPOP após a inserção de um valor na fila.
+
+Para que o BLPOP fique bloqueado por um tempo indeterminado, passamos zero como argumento:
+
+> BLPOP fila:confirma-email 0
+Inserimos um valor em um outro terminal:
+
+> RPUSH fila:confirma-email "paulo.silveira@alura.com.br"
+E o comando BLPOP é executado:
+
+> 1) "fila:confirma-email"
+> 2) "paulo.silveira@alura.com.br"
+> (27.91s)
+
+04. Rede social e relacionamento
+
+Neste capítulo vimos como utilizar conjuntos no Redis. Quais as principais diferenças de um conjunto em relação as listas?
+
+Quando utilizamos conjuntos, não conseguimos recuperar um elemento em um determinado índice, pois não temos garantia de que a ordem 
+dos valores será mantida. Outra diferença em relação as listas, é que conjuntos não permitem elementos repetidos.
+
+Vamos implementar agora um exemplo para representar os amigos de um usuário de uma rede social.
+
+Adicione os seguintes valores em um conjunto associados à chave "relacionamentos:guilherme":
+
+"daniela"
+"carlos"
+"ana"
+"lucia"
+Como podemos descobrir a quantidade de elementos que no nosso conjunto?
+
+Como resposta, forneça os comandos necessários.
+
+Para adiconar os valores em um conjunto, utilizamos o comando SADD:
+
+> SADD "relacionamentos:guilherme" "daniela" "carlos" "ana" "lucia"
+Para descobrir a quantidade de elementos, ou seja, a cardinalidade:
+
+> SCARD "relacionamentos:guilherme"
+> (integer) 4
+
+Qual o comando necessário para remover o elemento "ana" do conjunto "relacionamentos:guilherme"?
+
+SREM "relacionamentos:guilherme" "ana"
+
+Utilizamos o comando SREM fornecendo como argumentos a chave e o valor que desejamos remover.
+
+Qual comando podemos utilizar para recuperar todos os elementos do conjunto "relacionamentos:guilherme"?
+
+E qual o comando para descobrir se o elemento "marcela" é um membro do conjunto "relacionamentos:guilherme"?
+
+Para recuperar todos os membros de um conunto utilizamos o comando SMEMBERS:
+
+> SMEMBERS "relacionamentos:guilherme"
+> 1) "carlos"
+> 2) "lucia"
+> 3) "daniela"
+> 4) "ana"
+Para verificar se um elemento é um membro de um conjunto, utilizmos o SISMEMBER, que retorna 1 caso o elemento pertença ao conjunto,
+ ou 0 caso o elemento não pertença ao cojunto:
+
+> SISMEMBER "relacionamentos:guilherme" "marcela"
+> (integer) 0
+
+Agora, crie um novo conjunto associado à chave "relacionamentos:marcela", com os seguintes elementos:
+
+"daniela"
+"ana"
+"paulo"
+Como podemos fazer para recuperar os amigos comuns entre "relacionamentos:guilherme" e "relacionamentos:marcela"?
+
+Qual comando podemos utilizar para descobrir quem o Guilherme("relacionamentos:guilherme") conhece que a Marcela (relacionamentos:marcela) não conhece? E para descobrir quem a Marcela conhece que o Guilherme não conhece?
+
+Como resposta, forneça os comandos utilizados.
+
+Para recuperar os amigos em comum, podemos realizar a intersecção dos dois conjuntos, através do comando SINTER:
+
+> SINTER "relacionamentos:guilherme" "relacionamentos:marcela"
+> 1) "daniela"
+> 2) "ana"
+Para descobrir quem o Guilherme conhece e a Marcela não, fazemos a diferença, que irá retornar todos os elementos que estão no conjunto 
+o Guilherme e não estão no conjunto da Marcela:
+
+> SDIFF "relacionamentos:guilherme" "relacionamentos:marcela"
+> 1) "carlos"
+> 2) "lucia"
+Para descobrir quem a Marcela conhece que o Guilherme não conhece, utilizamos o mesmo comando invertendo os argumentos. Desta forma o 
+Redis irá retornar os elementos no conjunto da Marcela que não estão no conjunto do Guilherme:
+
+> SDIFF "relacionamentos:marcela" "relacionamentos:guilherme"
+> 1) "paulo"
+
+Uma outra operação que podemos fazer com conjuntos no Redis é a união. Nesta operação, o Redis irá pegar os elementos dos dois conjuntos 
+e retornar todos eles, sem repetição.
+
+Tente executar o comando:
+
+> SUNION "relacionamentos:guilherme" "relacionamentos:marcela"
+
+Qual o resultado?
+
+O resultado da execução do SUNION é os elementos dos dois conjuntos sem repetição:
+
+1) "ana"
+2) "carlos"
+3) "lucia"
+4) "daniela"
+5) "paulo"
