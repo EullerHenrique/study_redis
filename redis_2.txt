@@ -250,3 +250,162 @@ O resultado da execução do SUNION é os elementos dos dois conjuntos sem repet
 3) "lucia"
 4) "daniela"
 5) "paulo"
+
+05. Ranks
+
+Agora vamos implementar um exemplo de um ranking, similar ao que temos hoje no Alura, onde um aluno possui uma determinada pontuação. 
+Queremos que os dados estejam ordenados de acordo com a pontuação, e para isso vamos armazenar no Redis utilizando um Sorted Set, 
+ou conjunto ordenado.
+
+Armazene no conjunto ordenado "pontuações" os seguintes valores:
+
+50076 guilherme
+65543 carlos
+33786 daniela
+8754 paulo
+Qual comando utilizamos se quisermos saber o tipo da chave "pontuações"?
+
+Como resposta, forneça os comando utilizados.
+
+Para armazenar os dados em um conjunto ordenado, ordenando pelos pontos, fazemos:
+
+> ZADD pontuacoes 50076 guilherme
+> ZADD pontuacoes 65543 carlos
+> ZADD pontuacoes 33786 daniela
+> ZADD pontuacoes 8754 paulo
+Para descobrir o tipo através da chave utilizamos o comando type:
+
+> TYPE "pontuacoes"
+> zset
+
+Qual comando podemos utilizar para descobrir a cardinalidade do conjunto ordenado criado anteriormente?
+
+Para descobrir a cardinalidade do conjunto ordenado utilizamos o comando ZCARD:
+
+> ZCARD pontuacoes
+
+Como podemos fazer para visualizar os elementos do conjunto criado? E se quisermos ver em ordem reversa ao que temos?
+
+Forneça os comandos utilizados.
+
+Para visualizar os elementos do conjunto, utilizamos o comando ZRANGE, que retonará os elementos ordenados de acordo com a pontuação:
+
+> ZRANGE pontuacoes 0 3
+> 1) "paulo"
+> 2) "daniela"
+> 3) "guilherme"
+> 4) "carlos"COPIAR CÓDIGO
+Para visualizar na ordem reversa:
+
+> ZREVRANGE pontuacoes 0 3
+> 1) "carlos"
+> 2) "guilherme"
+> 3) "daniela"
+> 4) "paulo"
+
+6. Entendendo mais sobre a ordenação com o zrange wishscores e usando números negativos
+
+Vamos continuar trabalhando com o conjunto ordenado que criamos no capítulo anterior.
+
+Como podemos fazer para trazer os elementos dos conjuntos e seus pontos de uma forma que não tenha perigo de que enquanto digitamos o 
+comando um novo elemento seja adicionado e acabe ficando de fora?
+
+Para trazer todos os elementos de forma atômica utilizamos o ZRANGE ou o ZREVRANGE passando o valor -1 no segundo argumento, 
+indicando para o Redis que ele deve trazer do primeiro ao último elemento do nosso conjunto ordenado. Para trazer os pontos utilizamos 
+o parâmetro WITHSCORES:
+
+> ZREVRANGE pontuacoes 0 -1 WITHSCORES
+
+Que comando poderíamos utilizar para trazer o penúltimo e o último elemento, com a pontuação, do nosso conjunto?
+
+ZRANGE pontuacoes -2 -1 WITHSCORES
+
+O número -2 representa o penúltimo elemento, independente de quantos existam, e o -1 o último. Retornando assim o penúltimo e o 
+último elemento. O parâmetro WITHSCORES é responsável por trazer a pontuação.
+
+Use o comando necessário e adicione 50000 pontos ao elemento "guilherme".
+
+Qual o comando necessário para saber a pontuação do elemento "paulo"?
+
+E se quisermos saber a posição do elemento "guilherme" no ranking em ordem crescente. E em ordem descrescente, que é o mais comum 
+quando estamos trabalhando com rankings?
+
+Como resposta, forneça os comando utilizados.
+
+Para adicionar 50000 pontos ao elemento "guilherme":
+
+> ZINCRBY pontuacoes 50000 guilherme
+Para descobrir a quantidade de pontos de um elemento utilizamos o comando ZSCORE:
+
+> ZSCORE pontuacoes paulo
+> "8754"
+Para saber a posição no ranking em ordem crescente e descrescente:
+
+> ZRANK pontuacoes guilherme
+> (integer) 3
+
+> ZREVRANK pontuacoes guilherme
+> (integer) 0
+
+Para evitar que no nosso sistema só possa haver usuários com nomes diferentes, já que estamos armazenando o nome como elemento do conjunto,
+vamos passar a armazenar os ids dos usuários associados aos pontos. Para isso remova o nosso conjunto atual:
+
+> DEL pontuacoes
+Adicione um novo conjunto à chave "pontuacoes" com os seguintes ids:
+
+Guilherme - 55
+
+Ana - 35
+
+Daniela - 65
+
+Utilize o ZRANGE e verifique se agora temos os ids atrelados aos pontos.
+
+Como resposta forneça os comandos ututilizados.
+
+Para criar o novo conjunto fazemos:
+
+> ZADD pontuacoes 50000 55
+> (integer) 1
+
+> ZADD pontuacoes 30000 35
+> (integer) 1
+
+> ZADD pontuacoes 300000 65
+> (integer) 1COPIAR CÓDIGO
+
+Para ver os ids:
+
+> ZRANGE pontuacoes 0 -1
+> 1) "35"
+> 2) "55"
+> 3) "65"
+
+7. Complexidade e velocidade dos algoritmos e estruturas de dados no Redis
+
+Vimos durante as aulas anteriores diversos comandos do Redis que poderemos usar no dia-a-dia. 
+Quando armazenamos dados na memória, o banco de dados é capaz de executar tais comandos em uma 
+velocidade muito rápida. Vamos discutir aqui quão rápidos são esses comandos.
+
+Para analisar a velocidade de um algoritmo, o executamos diversas vezes e observamos o quão devagar 
+ele fica, é a análise assintótica. Nós temos aqui no Alura um curso específico para isso.
+
+No site do Redis (redis.io) temos todas as informações sobre todos seus comandos. Vamos pegar um comando 
+bem básico como exemplo, o HSET. Temos a informação de que sua complexidade é O(1), ou seja, ele possui 
+velocidade constante, é muito rápido. A mesma velocidade para o SET, o GET e o HGET.
+
+Porém temos também operações não tão rápidas, como HGETALL, que tem complexidade O(N), ou seja, é linear, 
+dependendo da quantidade de elementos que constituem o hash.
+
+A complexidade do ZRANGE é na ordem de O(log(N)+M), sendo N o número de elementos no conjunto ordenado e M o 
+número de elementos retornados. Este cresce de maneira otimizada também, sendo mais rápido que os lineares.
+
+Estamos terminando nosso curso de introdução ao Redis. Aqui vimos como utilizar a linha de comando para 
+conectarmos ao servidor remoto de dados, o qual é um dicionário do tipo chave-valor. O valor não precisa 
+necessariamente ser uma string ou um número, ele pode ser um hash, uma lista, trabalharmos a lista como fila 
+ou como conjunto, que por sua vez pode ser ordenado.
+
+Vimos inúmeras situações em que o Redis pode estar presente para solucionar problemas de relatórios, contatos, 
+rankings com seus algoritmos. Se seu interesse é entender como funciona por baixo dos panos diversos tipos de 
+algoritmos e estruturas de dados, existem cursos específicos para isso. As áreas de aplicação são múltiplas. 
+
